@@ -1,0 +1,32 @@
+# Compiled shared libraries
+flowex/lib/
+*.so
+*.dylib
+*.dll
+
+# cgo generated header
+*.h
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Env / secrets
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

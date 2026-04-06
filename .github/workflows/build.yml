@@ -1,0 +1,81 @@
+name: Build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            GOOS: linux
+            GOARCH: amd64
+            out: libflowex.so
+            cc: gcc
+          - os: ubuntu-24.04
+            GOOS: linux
+            GOARCH: arm64
+            out: libflowex-arm64.so
+            cc: aarch64-linux-gnu-gcc
+          - os: macos-latest
+            GOOS: darwin
+            GOARCH: arm64
+            out: libflowex.dylib
+            cc: ""
+          - os: windows-latest
+            GOOS: windows
+            GOARCH: amd64
+            out: libflowex.dll
+            cc: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install cross-compiler
+        if: matrix.GOARCH == 'arm64' && matrix.GOOS == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build shared library
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.GOOS }}
+          GOARCH: ${{ matrix.GOARCH }}
+          CC: ${{ matrix.cc }}
+        run: |
+          mkdir -p flowex/lib
+          go build -buildmode=c-shared -o flowex/lib/${{ matrix.out }} ./cmd/lib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: flowex/lib/${{ matrix.out }}
+
+  package:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: flowex/lib
+          merge-multiple: true
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
