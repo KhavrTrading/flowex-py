@@ -49,5 +49,8 @@ Homepage = "https://github.com/KhavrTrading/flowex-py"
 Repository = "https://github.com/KhavrTrading/flowex-py"
 Issues = "https://github.com/KhavrTrading/flowex-py/issues"
 
+[tool.setuptools.packages.find]
+include = ["flowex*"]
+
 [tool.setuptools.package-data]
 flowex = ["lib/*"]
