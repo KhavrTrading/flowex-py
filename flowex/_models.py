@@ -132,11 +132,63 @@ class DepthMetrics:
 
 
 @dataclass
+class TechnicalIndicators:
+    # RSI
+    rsi_14: float = 0.0
+
+    # Moving Averages
+    sma_20: float = 0.0
+    sma_50: float = 0.0
+    sma_200: float = 0.0
+    ema_9: float = 0.0
+    ema_12: float = 0.0
+    ema_20: float = 0.0
+    ema_21: float = 0.0
+    ema_26: float = 0.0
+    ema_50: float = 0.0
+    ema_200: float = 0.0
+
+    # MACD
+    macd_line: float = 0.0
+    signal_line: float = 0.0
+    histogram: float = 0.0
+
+    # Bollinger Bands
+    bb_upper: float = 0.0
+    bb_middle: float = 0.0
+    bb_lower: float = 0.0
+
+    # Volatility & Advanced
+    atr: float = 0.0
+    stoch_rsi: float = 0.0
+    mmi: float = 0.0
+
+    # Summary Signals (-2=StrongSell, -1=Sell, 0=Neutral, 1=Buy, 2=StrongBuy)
+    ma_summary: int = 0
+    oscillator_sum: int = 0
+    overall_sum: int = 0
+
+    # Counts
+    ma_buy: int = 0
+    ma_sell: int = 0
+    ma_neutral: int = 0
+    oscill_buy: int = 0
+    oscill_sell: int = 0
+    oscill_neutral: int = 0
+
+    @classmethod
+    def from_dict(cls, d: dict) -> TechnicalIndicators:
+        known = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in known})
+
+
+@dataclass
 class Snapshot:
     timestamp: int = 0
     candles: list[CandleHLCV] = field(default_factory=list)
     depth: DepthMetrics | None = None
     trades: list[NormalizedTrade] = field(default_factory=list)
+    indicators: TechnicalIndicators | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> Snapshot:
@@ -145,4 +197,7 @@ class Snapshot:
             candles=[CandleHLCV(**c) for c in d.get("candles") or []],
             depth=DepthMetrics.from_dict(d["depth"]) if d.get("depth") else None,
             trades=[NormalizedTrade(**t) for t in d.get("trades") or []],
+            indicators=TechnicalIndicators.from_dict(d["indicators"])
+            if d.get("indicators")
+            else None,
         )

@@ -61,6 +61,40 @@ def _load():
     lib.FlowexFree.argtypes = [ctypes.c_void_p]
     lib.FlowexFree.restype = None
 
+    # FlowexGetStatus(exchange *char) -> *char (caller must free)
+    lib.FlowexGetStatus.argtypes = [ctypes.c_char_p]
+    lib.FlowexGetStatus.restype = ctypes.c_void_p
+
+    # FlowexSubscribeCandle(exchange *char, symbol *char) -> int
+    lib.FlowexSubscribeCandle.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    lib.FlowexSubscribeCandle.restype = ctypes.c_int
+
+    # FlowexSubscribeDepth(exchange *char, symbol *char) -> int
+    lib.FlowexSubscribeDepth.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    lib.FlowexSubscribeDepth.restype = ctypes.c_int
+
+    # FlowexSubscribeTrade(exchange *char, symbol *char) -> int
+    lib.FlowexSubscribeTrade.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    lib.FlowexSubscribeTrade.restype = ctypes.c_int
+
+    # FlowexUnsubscribeStream(exchange *char, symbol *char, stream *char) -> int
+    lib.FlowexUnsubscribeStream.argtypes = [
+        ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+    ]
+    lib.FlowexUnsubscribeStream.restype = ctypes.c_int
+
+    # FlowexGetDepthHistory(exchange *char, symbol *char, count int) -> *char
+    lib.FlowexGetDepthHistory.argtypes = [
+        ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int,
+    ]
+    lib.FlowexGetDepthHistory.restype = ctypes.c_void_p
+
+    # FlowexGetDepthByTimeRange(exchange, symbol, startMs, endMs) -> *char
+    lib.FlowexGetDepthByTimeRange.argtypes = [
+        ctypes.c_char_p, ctypes.c_char_p, ctypes.c_longlong, ctypes.c_longlong,
+    ]
+    lib.FlowexGetDepthByTimeRange.restype = ctypes.c_void_p
+
     return lib
 
 

@@ -5,7 +5,13 @@ import ctypes
 import json
 
 from flowex._lib import lib as _lib
-from flowex._models import CandleHLCV, DepthMetrics, NormalizedTrade, Snapshot
+from flowex._models import (
+    CandleHLCV,
+    DepthMetrics,
+    NormalizedTrade,
+    Snapshot,
+    TechnicalIndicators,
+)
 
 __all__ = [
     "Manager",
@@ -13,6 +19,7 @@ __all__ = [
     "CandleHLCV",
     "DepthMetrics",
     "NormalizedTrade",
+    "TechnicalIndicators",
 ]
 
 _shutdown_registered = False
@@ -71,10 +78,74 @@ class Manager:
             _lib.FlowexFree(ptr)
         return {sym: Snapshot.from_dict(snap) for sym, snap in data.items()}
 
+    def subscribe_candle(self, symbol: str) -> None:
+        rc = _lib.FlowexSubscribeCandle(self._exchange_b, symbol.encode("utf-8"))
+        if rc != 0:
+            raise RuntimeError(f"FlowexSubscribeCandle failed for {symbol!r}")
+
+    def subscribe_depth(self, symbol: str) -> None:
+        rc = _lib.FlowexSubscribeDepth(self._exchange_b, symbol.encode("utf-8"))
+        if rc != 0:
+            raise RuntimeError(f"FlowexSubscribeDepth failed for {symbol!r}")
+
+    def subscribe_trade(self, symbol: str) -> None:
+        rc = _lib.FlowexSubscribeTrade(self._exchange_b, symbol.encode("utf-8"))
+        if rc != 0:
+            raise RuntimeError(f"FlowexSubscribeTrade failed for {symbol!r}")
+
     def unsubscribe(self, symbol: str) -> None:
         rc = _lib.FlowexUnsubscribe(self._exchange_b, symbol.encode("utf-8"))
         if rc != 0:
             raise RuntimeError(f"FlowexUnsubscribe failed for {symbol!r}")
+
+    def unsubscribe_stream(self, symbol: str, stream: str) -> None:
+        """Unsubscribe a specific stream type: 'candle', 'depth', or 'trade'."""
+        rc = _lib.FlowexUnsubscribeStream(
+            self._exchange_b, symbol.encode("utf-8"), stream.encode("utf-8"),
+        )
+        if rc != 0:
+            raise RuntimeError(
+                f"FlowexUnsubscribeStream failed for {symbol!r} stream={stream!r}"
+            )
+
+    def get_status(self) -> dict:
+        ptr = _lib.FlowexGetStatus(self._exchange_b)
+        if not ptr:
+            return {}
+        try:
+            return json.loads(ctypes.string_at(ptr))
+        finally:
+            _lib.FlowexFree(ptr)
+
+    def get_depth_history(
+        self, symbol: str, count: int = 0,
+    ) -> list[DepthMetrics]:
+        """Return recent depth metrics. *count=0* returns the full buffer."""
+        ptr = _lib.FlowexGetDepthHistory(
+            self._exchange_b, symbol.encode("utf-8"), count,
+        )
+        if not ptr:
+            return []
+        try:
+            data = json.loads(ctypes.string_at(ptr))
+        finally:
+            _lib.FlowexFree(ptr)
+        return [DepthMetrics.from_dict(m) for m in data]
+
+    def get_depth_by_time_range(
+        self, symbol: str, start_ms: int, end_ms: int,
+    ) -> list[DepthMetrics]:
+        """Return depth metrics within a Unix-ms time window (inclusive)."""
+        ptr = _lib.FlowexGetDepthByTimeRange(
+            self._exchange_b, symbol.encode("utf-8"), start_ms, end_ms,
+        )
+        if not ptr:
+            return []
+        try:
+            data = json.loads(ctypes.string_at(ptr))
+        finally:
+            _lib.FlowexFree(ptr)
+        return [DepthMetrics.from_dict(m) for m in data]
 
     def close(self) -> None:
         _lib.FlowexShutdown()

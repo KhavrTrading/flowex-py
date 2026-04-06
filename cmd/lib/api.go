@@ -12,6 +12,7 @@ import (
 	"github.com/KhavrTrading/flowex/bitget"
 	"github.com/KhavrTrading/flowex/bybit"
 	"github.com/KhavrTrading/flowex/depth"
+	"github.com/KhavrTrading/flowex/indicators/technical"
 	"github.com/KhavrTrading/flowex/ws"
 
 	log "github.com/sirupsen/logrus"
@@ -20,10 +21,11 @@ import (
 // JSON serialization types with proper tags.
 
 type jsonSnapshot struct {
-	Timestamp int64               `json:"timestamp"`
-	Candles   []jsonCandle        `json:"candles"`
-	Depth     *depth.DepthMetrics `json:"depth"`
-	Trades    []jsonTrade         `json:"trades"`
+	Timestamp  int64                          `json:"timestamp"`
+	Candles    []jsonCandle                   `json:"candles"`
+	Depth      *depth.DepthMetrics            `json:"depth"`
+	Trades     []jsonTrade                    `json:"trades"`
+	Indicators *technical.TechnicalIndicators `json:"indicators"`
 }
 
 type jsonCandle struct {
@@ -65,6 +67,7 @@ func marshalSnapshot(snap *ws.Snapshot) ([]byte, error) {
 	if snap.DepthStore != nil {
 		js.Depth = snap.DepthStore.GetLatest()
 	}
+	js.Indicators = snap.Indicators
 	for i, t := range snap.Trades {
 		js.Trades[i] = jsonTrade{
 			Timestamp: t.Timestamp, Price: t.Price, Size: t.Size,
@@ -214,4 +217,120 @@ func FlowexShutdown() {
 //export FlowexFree
 func FlowexFree(ptr *C.char) {
 	C.free(unsafe.Pointer(ptr))
+}
+
+//export FlowexGetStatus
+func FlowexGetStatus(cExchange *C.char) *C.char {
+	exchange := C.GoString(cExchange)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return C.CString("{}")
+	}
+	data, err := json.Marshal(mgr.GetStatus())
+	if err != nil {
+		return C.CString("{}")
+	}
+	return C.CString(string(data))
+}
+
+//export FlowexSubscribeCandle
+func FlowexSubscribeCandle(cExchange *C.char, cSymbol *C.char) C.int {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return -1
+	}
+	if err := mgr.SubscribeCandle(symbol, nil); err != nil {
+		return -1
+	}
+	return 0
+}
+
+//export FlowexSubscribeDepth
+func FlowexSubscribeDepth(cExchange *C.char, cSymbol *C.char) C.int {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return -1
+	}
+	if err := mgr.SubscribeDepth(symbol, nil); err != nil {
+		return -1
+	}
+	return 0
+}
+
+//export FlowexSubscribeTrade
+func FlowexSubscribeTrade(cExchange *C.char, cSymbol *C.char) C.int {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return -1
+	}
+	if err := mgr.SubscribeTrade(symbol, nil); err != nil {
+		return -1
+	}
+	return 0
+}
+
+//export FlowexUnsubscribeStream
+func FlowexUnsubscribeStream(cExchange *C.char, cSymbol *C.char, cStream *C.char) C.int {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	stream := ws.StreamType(C.GoString(cStream))
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return -1
+	}
+	if err := mgr.Unsubscribe(symbol, stream); err != nil {
+		return -1
+	}
+	return 0
+}
+
+//export FlowexGetDepthHistory
+func FlowexGetDepthHistory(cExchange *C.char, cSymbol *C.char, count C.int) *C.char {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return nil
+	}
+	snap := mgr.GetSnapshot(symbol)
+	if snap == nil || snap.DepthStore == nil {
+		return nil
+	}
+	var metrics []depth.DepthMetrics
+	if int(count) <= 0 {
+		metrics = snap.DepthStore.GetRecent()
+	} else {
+		metrics = snap.DepthStore.GetRecentN(int(count))
+	}
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		return nil
+	}
+	return C.CString(string(data))
+}
+
+//export FlowexGetDepthByTimeRange
+func FlowexGetDepthByTimeRange(cExchange *C.char, cSymbol *C.char, startMs C.longlong, endMs C.longlong) *C.char {
+	exchange := C.GoString(cExchange)
+	symbol := C.GoString(cSymbol)
+	mgr := getManager(exchange)
+	if mgr == nil {
+		return nil
+	}
+	snap := mgr.GetSnapshot(symbol)
+	if snap == nil || snap.DepthStore == nil {
+		return nil
+	}
+	metrics := snap.DepthStore.GetByTimeRange(int64(startMs), int64(endMs))
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		return nil
+	}
+	return C.CString(string(data))
 }
